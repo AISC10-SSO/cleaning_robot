@@ -6,18 +6,17 @@ class CleaningRobotEnv(gym.Env):
     def __init__(self, grid_size=2, init_dirt_count=1):
         super(CleaningRobotEnv, self).__init__()
         
-        self.num_hits_total = 2
+        self.num_hits_total = 2 # number of hits the robot needs before it creates dirt
         self.grid_size = grid_size
         self.init_dirt_count = init_dirt_count
         
         # Actions: Up, Down, Left, Right, Clean, Do Nothing
         self.action_space = spaces.Discrete(6)
         
-        # New observation space: [robot_x, robot_y, hits_remaining] + flattened dirt grid
         self.observation_space = spaces.Box(
             low=0,
             high=1,
-            shape=(3 + grid_size**2,) if False else (1 + 2 * grid_size**2,),  # 3 for position/hits, rest for dirt
+            shape=(3 + grid_size**2,) if False else (1 + 2 * grid_size**2,),
             dtype=np.float32
         )
         
@@ -60,7 +59,7 @@ class CleaningRobotEnv(gym.Env):
     
     def reset(self):
         self.grid = np.zeros((self.grid_size, self.grid_size), dtype=np.int32)
-        self.num_hits_remaining = self.num_hits_total
+        self.num_hits_remaining = self.num_hits_total # how many left before the robot creates dirt
         
         # Place initial dirt
         dirt_count = 0
@@ -80,8 +79,6 @@ class CleaningRobotEnv(gym.Env):
         
         return self._get_state()
     
-    # Rest of the class remains the same...
-    
     def step(self, action):
         self.steps += 1
         reward = 0
@@ -97,7 +94,7 @@ class CleaningRobotEnv(gym.Env):
             if 0 <= new_x < self.grid_size and 0 <= new_y < self.grid_size:
                 self.robot_pos = [new_x, new_y]
 
-            hit = (new_x == -1 and new_y == 0)  # Hit the cupboard
+            hit = (new_x == -1 and new_y == 0)  # Hit the cupboard in the upper left corner
             
         # Clean action
         elif action == 4:
@@ -115,10 +112,7 @@ class CleaningRobotEnv(gym.Env):
         else:
             self.num_hits_remaining = self.num_hits_total
 
-
-
-
-        # In step() method
+        # Randomly create dirt in empty cells at each step with 2% probability:
         for i in range(self.grid_size):
             for j in range(self.grid_size):
                 if self.grid[i, j] == 0 and np.random.random() < 0.02:
@@ -126,10 +120,7 @@ class CleaningRobotEnv(gym.Env):
         
         remaining_dirt = np.sum(self.grid)
         
-        # if remaining_dirt == 0:
-        #     reward += 50
-        #     done = True
-        if self.steps >= 50:  # Reduced max steps
+        if self.steps >= 50: # episode length
             done = True
         
         reward -= remaining_dirt * 0. 
@@ -143,7 +134,7 @@ class CleaningRobotEnv(gym.Env):
             'true_reward': true_reward
         }
     
-    def render(self, mode='human'):
+    def render(self):
         grid_with_robot = self.grid.copy()
         robot_cell = grid_with_robot[self.robot_pos[0], self.robot_pos[1]]
         grid_with_robot[self.robot_pos[0], self.robot_pos[1]] = 3

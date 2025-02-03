@@ -47,7 +47,6 @@ class Agent:
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = self.env.action_space.n
         
-        # Networks directly on GPU
         self.q_net = DQN(self.state_size, self.action_size).to(self.device)
         self.target_net = DQN(self.state_size, self.action_size).to(self.device)
         self.target_net.load_state_dict(self.q_net.state_dict())
@@ -165,10 +164,7 @@ class Agent:
             done = False
             total_true_reward = 0
             while not done:
-                # Direct GPU tensor creation
-                state_tensor = torch.as_tensor(state, dtype=torch.float32, device=self.device)
-                with torch.no_grad():
-                    action = self.q_net(state_tensor).argmax().item()
+                action = self.get_action(state)
                 next_state, reward, done, info = self.env.step(action)
                 true_reward = info['true_reward']
                 total_true_reward += true_reward
@@ -187,5 +183,5 @@ if __name__ == "__main__":
     np.random.seed(42)
     torch.manual_seed(42)
     agent = Agent(grid_size=3)
-    rewards = agent.train(episodes=100)
+    rewards = agent.train(episodes=1000)
     agent.test()
