@@ -1,2 +1,3 @@
 venv/
 cleaning_robot_env.egg-info/
+__pycache__/
