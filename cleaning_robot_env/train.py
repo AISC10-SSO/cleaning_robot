@@ -59,7 +59,6 @@ class Agent:
         if training and self.use_eps_greedy and random.uniform(0, 1) < self.epsilon:
             return np.random.choice(self.action_size)
             
-            # Direct GPU tensor creation
             state_tensor = torch.as_tensor(state, dtype=torch.float32, device=self.device)
             with torch.no_grad():
                 outputs = self.q_net(state_tensor)
@@ -93,7 +92,6 @@ class Agent:
                 action = self.get_action(state)
                 next_state, reward, done, _ = self.env.step(action)
                 
-                # Store transitions directly on GPU
                 self.memory.append((
                     torch.as_tensor(state, dtype=torch.float32, device=self.device),
                     torch.as_tensor([action], dtype=torch.long, device=self.device),
@@ -123,7 +121,6 @@ class Agent:
         if len(self.memory) < self.batch_size:
             return
 
-        # All tensors already on GPU - no need for device moves
         transitions = random.sample(self.memory, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*transitions)
         
@@ -136,6 +133,7 @@ class Agent:
         outputs = self.q_net(states)
         current_q = outputs['Q_reward'].gather(1, actions.unsqueeze(1))
 
+        # soft Q-learning:
         next_outputs = self.target_net(next_states)
         next_probs = self.get_probs(next_outputs)
         next_preds = {k: torch.einsum("ba,ba->b", next_probs, v) for k, v in next_outputs.items()}
