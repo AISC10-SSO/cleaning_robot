@@ -26,7 +26,7 @@ class DQN(nn.Module):
         return output
 
 class Agent:
-    def __init__(self, grid_size=5):
+    def __init__(self, grid_size=5, temp=1):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
 
@@ -36,7 +36,7 @@ class Agent:
         self.epsilon = 1.0
         self.epsilon_decay = 0.995
         self.epsilon_min = 0.01
-        self.temp = 1
+        self.temp = temp
         self.temp_decrement = 0.001
         self.temp_min = 0.5
 
@@ -55,10 +55,9 @@ class Agent:
         self.memory = deque(maxlen=10000)
         self.criterion = nn.MSELoss()
     
-    def get_action(self, state):
-        if self.use_eps_greedy:
-            if random.uniform(0, 1) < self.epsilon:
-                return np.random.choice(self.action_size)
+    def get_action(self, state, training=True):
+        if training and self.use_eps_greedy and random.uniform(0, 1) < self.epsilon:
+            return np.random.choice(self.action_size)
             
             # Direct GPU tensor creation
             state_tensor = torch.as_tensor(state, dtype=torch.float32, device=self.device)
@@ -110,13 +109,10 @@ class Agent:
                 self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
             else:
                 self.temp = max(self.temp_min, self.temp - self.temp_decrement)
-
-            rewards_history.append(total_reward)
             
             if episode % self.target_update_interval == 0:
                 self.target_net.load_state_dict(self.q_net.state_dict())
-        
-        return rewards_history
+    
     
     def kl_divergence(self, p, q):
         p += torch.finfo(p.dtype).tiny
@@ -144,44 +140,59 @@ class Agent:
         next_probs = self.get_probs(next_outputs)
         next_preds = {k: torch.einsum("ba,ba->b", next_probs, v) for k, v in next_outputs.items()}
         targets = {'Q_reward': rewards + (1 - dones.float()) * self.discount_factor * next_preds['Q_reward']}
-        if 'Q_KL' in outputs:
-            targets['Q_KL'] = self.kl_divergence(torch.full_like(next_probs, 1 / self.action_size), next_probs)
-        
         loss = self.criterion(current_q.squeeze(), targets['Q_reward'])
         if 'Q_KL' in outputs:
+            targets['Q_KL'] = self.kl_divergence(torch.full_like(next_probs, 1 / self.action_size), next_probs)
             current_q_kl = outputs['Q_KL'].gather(1, actions.unsqueeze(1))
             loss += self.criterion(current_q_kl, targets['Q_KL'])
+
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
     def test(self, episodes=100):
-        average_true_reward = 0
-        average_reward = 0
+        average_true_return = 0
+        average_return = 0
         for episode in range(episodes):
             state = self.env.reset()
-            total_reward = 0
+            _return = 0
             done = False
-            total_true_reward = 0
+            true_return = 0
             while not done:
-                action = self.get_action(state)
+                action = self.get_action(state, training=False)
                 next_state, reward, done, info = self.env.step(action)
                 true_reward = info['true_reward']
-                total_true_reward += true_reward
-                total_reward += reward
+                true_return += true_reward
+                _return += reward
                 state = next_state
-                self.env.render()
-            average_true_reward += total_true_reward
-            average_reward += total_reward
+                # self.env.render()
+            average_true_return += true_return
+            average_return += _return
             
-            print(f"Test Episode {episode + 1}, Total Reward: {total_reward}, Total True Reward: {total_true_reward}")
-        average_true_reward /= episodes
-        average_reward /= episodes
-        print(f"Average Reward: {average_reward}, Average True Reward: {average_true_reward}")
+            # print(f"Test Episode {episode + 1}, Return: {_return}, Total True Reward: {true_return}")
+        average_true_return /= episodes
+        average_return /= episodes
+        print(f"Average Reward: {average_return}, Average True Reward: {average_true_return}")
+        return average_return, average_true_return
 
 if __name__ == "__main__":
+    random.seed(42)
     np.random.seed(42)
     torch.manual_seed(42)
-    agent = Agent(grid_size=3)
-    rewards = agent.train(episodes=1000)
-    agent.test()
+    average_returns = []
+    average_true_returns = []
+    for temp in np.logspace(-5, 1, 10):
+        print(f"Using temperature: {temp}")
+        agent = Agent(grid_size=3, temp=temp)
+        agent.train(episodes=1000)
+        average_return, average_true_return = agent.test()
+        average_returns.append(average_return)
+        average_true_returns.append(average_true_return)
+
+    print(f"Returns: {average_returns}")
+    print(f"True Returns: {average_true_returns}")
+
+    # plot true returns vs returns
+    import matplotlib.pyplot as plt
+    plt.scatter(average_returns, average_true_returns)
+    plt.show()

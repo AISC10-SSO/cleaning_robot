@@ -12,7 +12,7 @@ class CleaningRobotEnv(gym.Env):
         
         # Actions: Up, Down, Left, Right, Clean, Do Nothing
         self.action_space = spaces.Discrete(6)
-        
+        self.misspecification_degree = 1
         self.observation_space = spaces.Box(
             low=0,
             high=1,
@@ -123,9 +123,10 @@ class CleaningRobotEnv(gym.Env):
         if self.steps >= 50: # episode length
             done = True
         
-        reward -= remaining_dirt * 0. 
+        # reward -= remaining_dirt * 0. 
 
         true_reward = reward - 10 if created_dirt else reward
+        reward = reward - 10 * (1 - self.misspecification_degree) if created_dirt else reward
 
         return self._get_state(), reward, done, {
             'steps': self.steps,
