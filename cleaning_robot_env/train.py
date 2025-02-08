@@ -192,7 +192,7 @@ if __name__ == "__main__":
     print(f"Returns: {average_returns}")
     print(f"True Returns: {average_true_returns}")
 
-    # plot true returns vs returns
-    import matplotlib.pyplot as plt
-    plt.scatter(average_returns, average_true_returns)
-    plt.show()
+    # # plot true returns vs returns
+    # import matplotlib.pyplot as plt
+    # plt.scatter(average_returns, average_true_returns)
+    # plt.show()
