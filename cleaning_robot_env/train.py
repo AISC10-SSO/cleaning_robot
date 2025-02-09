@@ -6,6 +6,7 @@ import torch.optim as optim
 from collections import deque
 from cleaning_robot_env.env import CleaningRobotEnv
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 class DQN(nn.Module):
     def __init__(self, input_size, output_size, kl=False):
@@ -26,7 +27,7 @@ class DQN(nn.Module):
         return output
 
 class Agent:
-    def __init__(self, grid_size=5, temp=1):
+    def __init__(self, grid_size=5, temp=1, misspecification_degree=1.0):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
 
@@ -43,7 +44,7 @@ class Agent:
         self.batch_size = 64
         self.target_update_interval = 10
         
-        self.env = CleaningRobotEnv(grid_size=grid_size)
+        self.env = CleaningRobotEnv(grid_size=grid_size, misspecification_degree=misspecification_degree)
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = self.env.action_space.n
         
@@ -83,7 +84,7 @@ class Agent:
 
     def train(self, episodes=100):
         rewards_history = []
-        for episode in tqdm(range(episodes)):
+        for episode in tqdm(range(episodes), desc="Training"):
             state = self.env.reset()
             total_reward = 0
             done = False
@@ -149,8 +150,8 @@ class Agent:
         self.optimizer.step()
 
     def test(self, episodes=100):
-        average_true_return = 0
-        average_return = 0
+        avg_true_return = 0
+        avg_return = 0
         for episode in range(episodes):
             state = self.env.reset()
             _return = 0
@@ -164,33 +165,51 @@ class Agent:
                 _return += reward
                 state = next_state
                 # self.env.render()
-            average_true_return += true_return
-            average_return += _return
+            avg_true_return += true_return
+            avg_return += _return
             
             # print(f"Test Episode {episode + 1}, Return: {_return}, Total True Reward: {true_return}")
-        average_true_return /= episodes
-        average_return /= episodes
-        print(f"Average Reward: {average_return}, Average True Reward: {average_true_return}")
-        return average_return, average_true_return
+        avg_true_return /= episodes
+        avg_return /= episodes
+        print(f"Average Reward: {avg_return}, Average True Reward: {avg_true_return}")
+        return avg_return, avg_true_return
 
 if __name__ == "__main__":
     random.seed(42)
     np.random.seed(42)
     torch.manual_seed(42)
-    average_returns = []
-    average_true_returns = []
-    for temp in np.logspace(-5, 1, 10):
-        print(f"Using temperature: {temp}")
-        agent = Agent(grid_size=3, temp=temp)
-        agent.train(episodes=1000)
-        average_return, average_true_return = agent.test()
-        average_returns.append(average_return)
-        average_true_returns.append(average_true_return)
+    degrees = [0, 0.25, 0.5, 0.75, 1.0]
+    temps = np.logspace(-5, 1, 10)
+    degree_to_avg_returns = {}
+    degree_to_avg_true_returns = {}
+    for misspecification_degree in degrees:
+        print(f"Misspecification Degree: {misspecification_degree}")
+        avg_returns = []
+        avg_true_returns = []
+        for temp in temps:
+            print(f"Temperature: {temp}")
+            agent = Agent(grid_size=3, temp=temp, misspecification_degree=misspecification_degree)
+            agent.train(episodes=1000)
+            avg_return, avg_true_return = agent.test()
+            avg_returns.append(avg_return)
+            avg_true_returns.append(avg_true_return)
 
-    print(f"Returns: {average_returns}")
-    print(f"True Returns: {average_true_returns}")
+        print(f"Returns: {avg_returns}")
+        print(f"True Returns: {avg_true_returns}")
 
-    # # plot true returns vs returns
-    # import matplotlib.pyplot as plt
-    # plt.scatter(average_returns, average_true_returns)
-    # plt.show()
+        degree_to_avg_returns[misspecification_degree] = avg_returns
+        degree_to_avg_true_returns[misspecification_degree] = avg_true_returns
+
+    for degree in degrees:
+        avg_returns = degree_to_avg_returns[degree]
+        avg_true_returns = degree_to_avg_true_returns[degree]
+
+        plt.scatter(avg_returns, avg_true_returns, label=f"Degree: {degree}")
+
+    plt.xlabel("Returns")
+    plt.ylabel("True Returns")
+    plt.xlim(0, 150)
+    plt.ylim(0, 150)
+    plt.plot([0, 150], [0, 150], color='black', linestyle='--')
+    plt.legend()
+    plt.show()

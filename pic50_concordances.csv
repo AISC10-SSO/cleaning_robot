@@ -1,0 +1,16 @@
+Model Pair,C-Index
+"('pic50_deep', 'pic50_gat_gcn')",0.5506915546061035
+"('pic50_deep', 'pic50_ginconvnet')",0.5544071829357758
+"('pic50_deep', 'pic50_gcnnet')",0.558541440420523
+"('pic50_deep', 'pic50_mlt-le-gin')",0.577914500330518
+"('pic50_deep', 'pic50_mlt-le-gcn')",0.5772980932880237
+"('pic50_gat_gcn', 'pic50_ginconvnet')",0.5993948006120875
+"('pic50_gat_gcn', 'pic50_gcnnet')",0.6265230995515644
+"('pic50_gat_gcn', 'pic50_mlt-le-gin')",0.5538037153883618
+"('pic50_gat_gcn', 'pic50_mlt-le-gcn')",0.5554300321570907
+"('pic50_ginconvnet', 'pic50_gcnnet')",0.6234169182269288
+"('pic50_ginconvnet', 'pic50_mlt-le-gin')",0.561815241672585
+"('pic50_ginconvnet', 'pic50_mlt-le-gcn')",0.5629130938880966
+"('pic50_gcnnet', 'pic50_mlt-le-gin')",0.5638452506583931
+"('pic50_gcnnet', 'pic50_mlt-le-gcn')",0.5652979040724176
+"('pic50_mlt-le-gin', 'pic50_mlt-le-gcn')",0.6196534593503659

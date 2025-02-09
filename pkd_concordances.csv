@@ -1,0 +1,16 @@
+Model Pair,C-Index
+"('pkd_deep', 'pkd_gat_gcn')",0.5731604556834142
+"('pkd_deep', 'pkd_ginconvnet')",0.5555940387787249
+"('pkd_deep', 'pkd_gcnnet')",0.596434660070065
+"('pkd_deep', 'pkd_mlt-le-gin')",0.5700791587607631
+"('pkd_deep', 'pkd_mlt-le-gcn')",0.581054269565733
+"('pkd_gat_gcn', 'pkd_ginconvnet')",0.6144950981472564
+"('pkd_gat_gcn', 'pkd_gcnnet')",0.6420976266027635
+"('pkd_gat_gcn', 'pkd_mlt-le-gin')",0.5592470767696561
+"('pkd_gat_gcn', 'pkd_mlt-le-gcn')",0.5771121176017748
+"('pkd_ginconvnet', 'pkd_gcnnet')",0.6186661630621623
+"('pkd_ginconvnet', 'pkd_mlt-le-gin')",0.534426509904655
+"('pkd_ginconvnet', 'pkd_mlt-le-gcn')",0.5214032231742052
+"('pkd_gcnnet', 'pkd_mlt-le-gin')",0.5707192321206573
+"('pkd_gcnnet', 'pkd_mlt-le-gcn')",0.5806537418160571
+"('pkd_mlt-le-gin', 'pkd_mlt-le-gcn')",0.6482582802684321

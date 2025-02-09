@@ -1,0 +1,16 @@
+Model Pair,C-Index
+"('pki_deep', 'pki_gat_gcn')",0.5824482415864773
+"('pki_deep', 'pki_ginconvnet')",0.5635897623427168
+"('pki_deep', 'pki_gcnnet')",0.5717522528399074
+"('pki_deep', 'pki_mlt-le-gin')",0.5882880343496164
+"('pki_deep', 'pki_mlt-le-gcn')",0.5817658203174569
+"('pki_gat_gcn', 'pki_ginconvnet')",0.5803776510596957
+"('pki_gat_gcn', 'pki_gcnnet')",0.6251001530354423
+"('pki_gat_gcn', 'pki_mlt-le-gin')",0.577941700109698
+"('pki_gat_gcn', 'pki_mlt-le-gcn')",0.6018433983102359
+"('pki_ginconvnet', 'pki_gcnnet')",0.5867834845457555
+"('pki_ginconvnet', 'pki_mlt-le-gin')",0.5556586048188963
+"('pki_ginconvnet', 'pki_mlt-le-gcn')",0.562530645069729
+"('pki_gcnnet', 'pki_mlt-le-gin')",0.5700913654046328
+"('pki_gcnnet', 'pki_mlt-le-gcn')",0.5845572985791071
+"('pki_mlt-le-gin', 'pki_mlt-le-gcn')",0.5610835380169923
