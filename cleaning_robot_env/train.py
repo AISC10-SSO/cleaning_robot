@@ -114,7 +114,6 @@ class Agent:
             if episode % self.target_update_interval == 0:
                 self.target_net.load_state_dict(self.q_net.state_dict())
     
-    
     def kl_divergence(self, p, q):
         p += torch.finfo(p.dtype).tiny
         q += torch.finfo(q.dtype).tiny
