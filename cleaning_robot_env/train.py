@@ -7,9 +7,10 @@ from collections import deque
 from cleaning_robot_env.env import CleaningRobotEnv
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+# torch.autograd.set_detect_anomaly(True)
 
 class DQN(nn.Module):
-    def __init__(self, input_size, output_size, kl=False):
+    def __init__(self, input_size, output_size, kl=True):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(input_size, 64)
         self.fc2 = nn.Linear(64, 64)
@@ -27,7 +28,7 @@ class DQN(nn.Module):
         return output
 
 class Agent:
-    def __init__(self, grid_size=5, temp=1, misspecification_degree=1.0):
+    def __init__(self, env, temp=1):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
 
@@ -44,7 +45,7 @@ class Agent:
         self.batch_size = 64
         self.target_update_interval = 10
         
-        self.env = CleaningRobotEnv(grid_size=grid_size, misspecification_degree=misspecification_degree)
+        self.env = env
         self.state_size = self.env.observation_space.shape[0]
         self.action_size = self.env.action_space.n
         
@@ -78,7 +79,8 @@ class Agent:
 
     def get_probs(self, outputs):
         logits = outputs['Q_reward'] / self.temp
-        logits -= outputs.get('Q_KL', 0)
+        if 'Q_KL' in outputs:
+            logits -= outputs['Q_KL']
         action_probs = torch.softmax(logits, dim=-1)
         return action_probs
 
@@ -116,7 +118,7 @@ class Agent:
     def kl_divergence(self, p, q):
         p += torch.finfo(p.dtype).tiny
         q += torch.finfo(q.dtype).tiny
-        return (p * (p / q).log()).sum()
+        return (p * (p / q).log()).sum(-1)
     
     def learn(self):
         if len(self.memory) < self.batch_size:
@@ -132,17 +134,21 @@ class Agent:
         dones = torch.cat(dones)
         
         outputs = self.q_net(states)
-        current_q = outputs['Q_reward'].gather(1, actions.unsqueeze(1))
+        current_q = outputs['Q_reward'].gather(1, actions.unsqueeze(1)).squeeze(1)
 
         # soft Q-learning:
-        next_outputs = self.target_net(next_states)
-        next_probs = self.get_probs(next_outputs)
-        next_preds = {k: torch.einsum("ba,ba->b", next_probs, v) for k, v in next_outputs.items()}
+        with torch.no_grad():
+            next_outputs = self.target_net(next_states)
+            next_probs = self.get_probs(next_outputs)
+            next_preds = {k: torch.einsum("ba,ba->b", next_probs, v) for k, v in next_outputs.items()}
+        
         targets = {'Q_reward': rewards + (1 - dones.float()) * self.discount_factor * next_preds['Q_reward']}
         loss = self.criterion(current_q.squeeze(), targets['Q_reward'])
         if 'Q_KL' in outputs:
-            targets['Q_KL'] = self.kl_divergence(torch.full_like(next_probs, 1 / self.action_size), next_probs)
-            current_q_kl = outputs['Q_KL'].gather(1, actions.unsqueeze(1))
+            targets['Q_KL'] = self.kl_divergence(torch.full_like(next_probs, 1 / self.action_size), next_probs) 
+            + (1 - dones.float()) * self.discount_factor * next_preds['Q_KL']
+
+            current_q_kl = outputs['Q_KL'].gather(1, actions.unsqueeze(1)).squeeze(1)
             loss += self.criterion(current_q_kl, targets['Q_KL'])
 
         self.optimizer.zero_grad()
@@ -171,40 +177,46 @@ class Agent:
             # print(f"Test Episode {episode + 1}, Return: {_return}, Total True Reward: {true_return}")
         avg_true_return /= episodes
         avg_return /= episodes
-        print(f"Average Reward: {avg_return}, Average True Reward: {avg_true_return}")
+        print(f"Average Return: {avg_return}, Average True Return: {avg_true_return}")
         return avg_return, avg_true_return
 
+def seed(x):
+    random.seed(x)
+    np.random.seed(x)
+    torch.manual_seed(x)
+
 if __name__ == "__main__":
-    random.seed(42)
-    np.random.seed(42)
-    torch.manual_seed(42)
-    degrees = [0, 0.25, 0.5, 0.75, 1.0]
+    grid_size = 3
+    misspecs = [1, 0.75, 0.5]
     temps = np.logspace(-5, 1, 10)
-    degree_to_avg_returns = {}
-    degree_to_avg_true_returns = {}
-    for misspecification_degree in degrees:
-        print(f"Misspecification Degree: {misspecification_degree}")
+    misspec_to_avg_returns = {}
+    misspec_to_avg_true_returns = {}
+
+    for misspec in misspecs:
+        print(f"Misspecification Degree: {misspec}")
+        env = CleaningRobotEnv(grid_size=grid_size, misspec=misspec)
         avg_returns = []
         avg_true_returns = []
         for temp in temps:
+            seed(42)
             print(f"Temperature: {temp}")
-            agent = Agent(grid_size=3, temp=temp, misspecification_degree=misspecification_degree)
+            agent = Agent(env, temp=temp)
             agent.train(episodes=1000)
+            seed(420)
             avg_return, avg_true_return = agent.test()
             avg_returns.append(avg_return)
             avg_true_returns.append(avg_true_return)
 
-        print(f"Returns: {avg_returns}")
-        print(f"True Returns: {avg_true_returns}")
+        misspec_to_avg_returns[misspec] = avg_returns
+        misspec_to_avg_true_returns[misspec] = avg_true_returns
 
-        degree_to_avg_returns[misspecification_degree] = avg_returns
-        degree_to_avg_true_returns[misspecification_degree] = avg_true_returns
+    print(f"{misspec_to_avg_returns=}")
+    print(f"{misspec_to_avg_true_returns=}")
+    for misspec in misspecs:
+        avg_returns = misspec_to_avg_returns[misspec]
+        avg_true_returns = misspec_to_avg_true_returns[misspec]
 
-    for degree in degrees:
-        avg_returns = degree_to_avg_returns[degree]
-        avg_true_returns = degree_to_avg_true_returns[degree]
-
-        plt.scatter(avg_returns, avg_true_returns, label=f"Degree: {degree}")
+        plt.scatter(avg_returns, avg_true_returns, label=f"Misspec: {misspec}")
 
     plt.xlabel("Returns")
     plt.ylabel("True Returns")

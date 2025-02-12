@@ -3,7 +3,7 @@ from gym import spaces
 import numpy as np
 
 class CleaningRobotEnv(gym.Env):
-    def __init__(self, grid_size=2, init_dirt_count=1, misspecification_degree=1):
+    def __init__(self, grid_size=2, init_dirt_count=1, misspec=1):
         super(CleaningRobotEnv, self).__init__()
         
         self.num_hits_total = 2 # number of hits the robot needs before it creates dirt
@@ -12,7 +12,7 @@ class CleaningRobotEnv(gym.Env):
         
         # Actions: Up, Down, Left, Right, Clean, Do Nothing
         self.action_space = spaces.Discrete(6)
-        self.misspecification_degree = misspecification_degree
+        self.misspec = misspec
         self.observation_space = spaces.Box(
             low=0,
             high=1,
@@ -126,7 +126,7 @@ class CleaningRobotEnv(gym.Env):
         # reward -= remaining_dirt * 0. 
 
         true_reward = reward - 10 if created_dirt else reward
-        reward = reward - 10 * (1 - self.misspecification_degree) if created_dirt else reward
+        reward = reward - 10 * (1 - self.misspec) if created_dirt else reward
 
         return self._get_state(), reward, done, {
             'steps': self.steps,
